@@ -31,24 +31,27 @@ const NOW_ITEMS = [
 
 const INTERESTS = ['Psychology', 'Writing', 'Sketching', 'Puzzles', 'Hiking', 'New cities, new everything']
 
-const FEATURED: { eyebrow: string; title: string; tags: string[]; tab: Tab }[] = [
+const FEATURED: { eyebrow: string; title: string; tags: string[]; tab: Tab; scrollTarget?: string }[] = [
   {
     eyebrow: 'STANFORD · 2025',
     title: 'DHR-based neutrophil oxidative burst assay',
     tags: ['CLINICAL', 'FLOW CYTOMETRY', 'STANFORD PATHOLOGY'],
     tab: 'core',
+    scrollTarget: 'project-dhr',
   },
   {
-    eyebrow: 'CARL JUNE LAB · 2025',
-    title: 'NK cell cytotoxicity predictive model',
-    tags: ['PYTHON', 'AI', 'NK CELLS'],
-    tab: 'computational',
+    eyebrow: 'CARL JUNE LAB · 2023–2025',
+    title: 'NK cell engineering via feeder cell systems',
+    tags: ['NK CELLS', 'CELL ENGINEERING', 'LENTIVIRUS'],
+    tab: 'core',
+    scrollTarget: 'project-nk-engineering',
   },
   {
-    eyebrow: 'STANFORD · 2025',
-    title: 'Flow cytometry panel builder tool',
-    tags: ['PYTHON', 'COMPUTATIONAL', 'TOOL'],
-    tab: 'computational',
+    eyebrow: 'MODERNA · 2024',
+    title: 'mRNA-LNP scale-up and stability optimization',
+    tags: ['mRNA-LNP', 'PROCESS DEVELOPMENT', 'GMP'],
+    tab: 'core',
+    scrollTarget: 'project-mrna-lnp',
   },
 ]
 
@@ -56,7 +59,7 @@ const FEATURED: { eyebrow: string; title: string; tags: string[]; tab: Tab }[] =
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function Landing({ onTabChange }: { onTabChange: (t: Tab) => void }) {
+export default function Landing({ onTabChange }: { onTabChange: (t: Tab, scrollTarget?: string) => void }) {
   const [hovCard, setHovCard] = useState<number | null>(null)
   const [contactOpen, setContactOpen] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -172,20 +175,20 @@ export default function Landing({ onTabChange }: { onTabChange: (t: Tab) => void
                         <div style={{ fontFamily: fonts.mono, fontSize: '0.5rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.muted, marginBottom: 7 }}>
                           Email
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
-                          <span style={{ fontFamily: fonts.mono, fontSize: '0.8125rem', color: colors.ink, userSelect: 'all' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                          <a href="mailto:sriniananyaa@gmail.com" style={{ fontFamily: fonts.mono, fontSize: '0.8125rem', color: colors.ember, textDecoration: 'none', userSelect: 'all' }}>
                             sriniananyaa@gmail.com
-                          </span>
+                          </a>
                           <button
                             onClick={() => { navigator.clipboard.writeText('sriniananyaa@gmail.com'); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
-                            style={{ fontFamily: fonts.mono, fontSize: '0.5625rem', letterSpacing: '0.08em', padding: '3px 8px', borderRadius: 6, border: `1px solid ${colors.border}`, background: 'transparent', cursor: 'pointer', color: colors.muted, whiteSpace: 'nowrap', flexShrink: 0 }}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 6px', borderRadius: 6, border: `1px solid ${colors.border}`, background: 'transparent', cursor: 'pointer', color: copied ? colors.ember : colors.muted, flexShrink: 0, transition: 'color 160ms' }}
                           >
-                            {copied ? 'Copied!' : 'Copy'}
+                            {copied
+                              ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                              : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                            }
                           </button>
                         </div>
-                        <a href="mailto:sriniananyaa@gmail.com" style={{ fontFamily: fonts.body, fontSize: '0.8125rem', color: colors.ember, textDecoration: 'none' }}>
-                          Open in mail client →
-                        </a>
                       </div>
                       <div style={{ height: 1, background: colors.divider, marginBottom: 14 }} />
                       {/* LinkedIn */}
@@ -309,7 +312,7 @@ export default function Landing({ onTabChange }: { onTabChange: (t: Tab) => void
               className={`work-card work-card-${i}`}
               onMouseEnter={() => handleCardHover(i)}
               onMouseLeave={() => handleCardLeave(i)}
-              onClick={() => onTabChange(p.tab)}
+              onClick={() => onTabChange(p.tab, p.scrollTarget)}
               style={{
                 background: colors.surface, border: `1px solid ${colors.hairline}`,
                 borderRadius: 20, padding: '22px 24px',

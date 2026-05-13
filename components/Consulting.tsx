@@ -125,61 +125,56 @@ export default function Consulting() {
           Open to project-based collaborations alongside my research role.
         </div>
 
-        <div className="con-ctas" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div className="con-ctas" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Email button — opens popup */}
           <div ref={contactRef} style={{ position: 'relative', display: 'inline-block' }}>
             <button
               onClick={() => setContactOpen((o) => !o)}
               style={{
-                fontFamily: fonts.display, fontWeight: 800, fontSize: '0.9375rem',
-                padding: '13px 24px', borderRadius: 14, border: 'none', cursor: 'pointer',
-                color: '#fffaf2', background: colors.ink, transition: 'opacity 160ms',
+                fontFamily: fonts.display, fontWeight: 700, fontSize: '0.9375rem',
+                padding: '13px 24px', borderRadius: 14,
+                border: `1px solid ${colors.border}`,
+                cursor: 'pointer', color: colors.ink,
+                background: 'transparent', transition: 'background 160ms',
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85' }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(36,24,19,0.04)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
             >
-              Get in touch
+              Email
             </button>
             {contactOpen && (
               <div style={{
                 position: 'absolute', top: 'calc(100% + 8px)', left: 0,
-                background: colors.surface, border: `1px solid ${colors.border}`,
-                borderRadius: 14, padding: '18px 20px',
-                boxShadow: '0 4px 24px rgba(36,24,19,0.12)',
-                zIndex: 100, minWidth: 280,
+                background: '#ffffff', border: `1px solid ${colors.border}`,
+                borderRadius: 12, padding: '12px 14px',
+                boxShadow: '0 4px 16px rgba(36,24,19,0.08)',
+                zIndex: 100,
               }}>
-                {/* Email */}
-                <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontFamily: fonts.mono, fontSize: '0.5rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.muted, marginBottom: 7 }}>
-                    Email
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
-                    <span style={{ fontFamily: fonts.mono, fontSize: '0.8125rem', color: colors.ink, userSelect: 'all' }}>
-                      sriniananyaa@gmail.com
-                    </span>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText('sriniananyaa@gmail.com'); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
-                      style={{ fontFamily: fonts.mono, fontSize: '0.5625rem', letterSpacing: '0.08em', padding: '3px 8px', borderRadius: 6, border: `1px solid ${colors.border}`, background: 'transparent', cursor: 'pointer', color: colors.muted, whiteSpace: 'nowrap', flexShrink: 0 }}
-                    >
-                      {copied ? 'Copied!' : 'Copy'}
-                    </button>
-                  </div>
-                  <a href="mailto:sriniananyaa@gmail.com" style={{ fontFamily: fonts.body, fontSize: '0.8125rem', color: colors.ember, textDecoration: 'none' }}>
-                    Open in mail client →
-                  </a>
+                <div style={{ fontFamily: fonts.mono, fontSize: '0.5rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.muted, marginBottom: 6 }}>
+                  Email
                 </div>
-                <div style={{ height: 1, background: colors.divider, marginBottom: 14 }} />
-                {/* LinkedIn */}
-                <div>
-                  <div style={{ fontFamily: fonts.mono, fontSize: '0.5rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.muted, marginBottom: 7 }}>
-                    LinkedIn
-                  </div>
-                  <a href="https://linkedin.com/in/ananyaa-srinivasan/" target="_blank" rel="noopener" style={{ fontFamily: fonts.body, fontSize: '0.8125rem', color: colors.ember, textDecoration: 'none' }}>
-                    linkedin.com/in/ananyaa-srinivasan →
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <a
+                    href="mailto:sriniananyaa@gmail.com"
+                    style={{ fontFamily: fonts.mono, fontSize: '0.8125rem', color: colors.ember, textDecoration: 'none', whiteSpace: 'nowrap' }}
+                  >
+                    sriniananyaa@gmail.com
                   </a>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText('sriniananyaa@gmail.com'); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 6px', borderRadius: 6, border: `1px solid ${colors.border}`, background: 'transparent', cursor: 'pointer', color: copied ? colors.ember : colors.muted, flexShrink: 0, transition: 'color 160ms' }}
+                  >
+                    {copied
+                      ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                      : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                    }
+                  </button>
                 </div>
               </div>
             )}
           </div>
+
+          {/* LinkedIn */}
           <a
             href="https://linkedin.com/in/ananyaa-srinivasan/"
             target="_blank"

@@ -236,7 +236,8 @@ export default function PathogenGame() {
   const [score,      setScore]      = useState(0)
   const [isNewBest,  setIsNewBest]  = useState(false)
   const [mounted,    setMounted]    = useState(false)
-  const [best, setBest] = useState(0)
+  const [best,       setBest]       = useState(0)
+  const [hitType,    setHitType]    = useState<string>('tcell')
 
   // Hydration-safe: read localStorage only after mount so SSR and client agree on 0
   useEffect(() => {
@@ -355,6 +356,7 @@ export default function PathogenGame() {
         localStorage.setItem('pg-best', String(newBestVal))
         setScore(finalScore)
         setIsNewBest(beaten)
+        setHitType(o.type)
         setGameState('dead')
         return
       }
@@ -378,17 +380,12 @@ export default function PathogenGame() {
     s.obstacles.forEach(o => drawCell(ctx, o.x, GROUND, o.type, o.yOff))
     drawPathogen(ctx, 70, s.py)
 
-    ctx.fillStyle = 'rgba(36,24,19,0.25)'
-    ctx.font = "500 12px 'JetBrains Mono', monospace"
-    ctx.textAlign = 'right'; ctx.textBaseline = 'top'
-    ctx.fillText(String(scoreVal).padStart(5, '0'), GW - 14, 12)
-
     if (s.newBestFlash > 0) {
       const alpha = Math.min(s.newBestFlash / 30, 1) * 0.9
       ctx.fillStyle = `rgba(212,69,31,${alpha})`
       ctx.font = "700 10px 'JetBrains Mono', monospace"
       ctx.textAlign = 'right'; ctx.textBaseline = 'top'
-      ctx.fillText('NEW BEST', GW - 14, 28)
+      ctx.fillText('NEW BEST', GW - 14, 12)
     }
 
     rafRef.current = requestAnimationFrame(tick)
@@ -426,60 +423,22 @@ export default function PathogenGame() {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')!
-
     ctx.clearRect(0, 0, GW, GH)
     ctx.fillStyle = 'rgba(247,241,232,0.4)'; ctx.fillRect(0, 0, GW, GH)
     ctx.strokeStyle = 'rgba(36,24,19,0.12)'; ctx.lineWidth = 1; ctx.setLineDash([4, 6])
     ctx.beginPath(); ctx.moveTo(0, GROUND + 2); ctx.lineTo(GW, GROUND + 2); ctx.stroke()
     ctx.setLineDash([])
     drawPathogen(ctx, 70, GROUND)
-
-    const fillWrapped = (text: string, x: number, startY: number, maxW: number, lineH: number) => {
-      const words = text.split(' '); let line = '', y = startY
-      for (const w of words) {
-        const test = line ? line + ' ' + w : w
-        if (ctx.measureText(test).width > maxW && line) { ctx.fillText(line, x, y); line = w; y += lineH }
-        else { line = test }
-      }
-      if (line) ctx.fillText(line, x, y)
-      return y
-    }
-
     if (gameState === 'dead') {
-      const hitType = stateRef.current?.lastHitType ?? 'tcell'
-      const hit = CELL_MESSAGES[hitType] ?? CELL_MESSAGES['tcell']
       drawCell(ctx, GW - 45, GROUND, hitType, 0)
-
-      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'
-
       if (isNewBest) {
         ctx.fillStyle = '#d4451f'
-        ctx.font = "700 10px 'JetBrains Mono', monospace"
-        ctx.fillText('NEW BEST', GW / 2, 20)
+        ctx.font = "700 11px 'JetBrains Mono', monospace"
+        ctx.textAlign = 'right'; ctx.textBaseline = 'top'
+        ctx.fillText('NEW BEST', GW - 14, 10)
       }
-
-      const topY = isNewBest ? 38 : 30
-      ctx.fillStyle = 'rgba(36,24,19,0.72)'
-      ctx.font = "700 12.5px 'Inter Tight', sans-serif"
-      ctx.fillText(`Oops! Caught by a ${hit.name}.`, GW / 2, topY)
-
-      ctx.fillStyle = 'rgba(36,24,19,0.55)'
-      ctx.font = "500 10.5px 'Inter Tight', sans-serif"
-      const afterBlurb = fillWrapped(hit.blurb, GW / 2, topY + 18, 430, 15)
-
-      ctx.fillStyle = 'rgba(36,24,19,0.32)'
-      ctx.font = "500 10px 'JetBrains Mono', monospace"
-      ctx.fillText('Choose a difficulty below · or SPACE to replay', GW / 2, afterBlurb + 20)
-    } else {
-      ctx.fillStyle = 'rgba(36,24,19,0.45)'
-      ctx.font = "500 12px 'JetBrains Mono', monospace"
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-      ctx.fillText(
-        difficulty ? 'SPACE / TAP to start' : 'Choose a difficulty below to start',
-        GW / 2, GH / 2 - 10
-      )
     }
-  }, [gameState, difficulty, isNewBest])
+  }, [gameState, hitType, isNewBest])
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -509,11 +468,13 @@ export default function PathogenGame() {
         width={GW}
         height={GH}
         onClick={jump}
+        onTouchStart={(e) => { e.preventDefault(); jump() }}
         style={{
           width: '100%', height: 'auto', borderRadius: 14,
           border: `1px solid ${colors.hairline}`,
           cursor: gameState === 'idle' ? 'default' : 'pointer',
           background: colors.canvas, display: 'block',
+          touchAction: 'manipulation',
         }}
       />
 
@@ -562,10 +523,35 @@ export default function PathogenGame() {
         </div>
       )}
 
-      {/* Subtitle */}
-      <div style={{ fontFamily: fonts.body, fontSize: '0.75rem', color: colors.muted, textAlign: 'center' }}>
-        You&apos;re a pathogen evading the immune system. How long can you last?
-      </div>
+      {/* Game message — rendered as HTML so it scales on all screen sizes */}
+      {gameState === 'idle' && (
+        <div style={{ fontFamily: fonts.mono, fontSize: '0.6875rem', color: colors.muted, textAlign: 'center', letterSpacing: '0.04em' }}>
+          {difficulty
+            ? 'Tap the canvas or press Space to start'
+            : "You're a pathogen — evade the immune system. Choose a difficulty to begin."}
+        </div>
+      )}
+      {gameState === 'dead' && (() => {
+        const hit = CELL_MESSAGES[hitType] ?? CELL_MESSAGES['tcell']
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontFamily: fonts.display, fontWeight: 800, fontSize: '0.9375rem', color: colors.ink }}>
+              Caught by a {hit.name}.
+            </div>
+            <div style={{ fontFamily: fonts.body, fontSize: '0.8125rem', lineHeight: 1.6, color: colors.muted }}>
+              {hit.blurb}
+            </div>
+            <div style={{ fontFamily: fonts.mono, fontSize: '0.5625rem', color: colors.muted, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 2 }}>
+              Tap the canvas or press Space to replay
+            </div>
+          </div>
+        )
+      })()}
+      {gameState === 'playing' && (
+        <div style={{ fontFamily: fonts.body, fontSize: '0.75rem', color: colors.muted, textAlign: 'center' }}>
+          You&apos;re a pathogen evading the immune system. How long can you last?
+        </div>
+      )}
 
     </div>
   )

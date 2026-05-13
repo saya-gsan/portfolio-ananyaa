@@ -22,10 +22,12 @@ const TITLES: Record<Tab, string> = {
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('home')
+  const [scrollTarget, setScrollTarget] = useState<string | null>(null)
   const mainRef = useRef<HTMLElement>(null)
 
-  const handleTabChange = (newTab: Tab) => {
+  const handleTabChange = (newTab: Tab, target?: string) => {
     if (newTab === tab) return
+    setScrollTarget(target ?? null)
     const main = mainRef.current
     if (!main) {
       setTab(newTab)
@@ -57,7 +59,7 @@ export default function App() {
 
   const pages: Record<Tab, React.ReactNode> = {
     home:          <Landing onTabChange={handleTabChange} />,
-    core:          <CoreField />,
+    core:          <CoreField scrollTarget={scrollTarget} />,
     consulting:    <Consulting />,
     computational: <Computational />,
     blog:          <Blog />,

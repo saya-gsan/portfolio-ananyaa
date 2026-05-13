@@ -280,10 +280,18 @@ const LEGEND = [
   { label: 'Treg', color: '#ff7a2e' }, { label: 'Plasma cell', color: '#ffd24a' },
 ]
 
-export default function CoreField() {
+export default function CoreField({ scrollTarget }: { scrollTarget?: string | null }) {
   const [openExp, setOpenExp] = useState<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    if (!scrollTarget) return
+    const timer = setTimeout(() => {
+      document.getElementById(scrollTarget)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 350)
+    return () => clearTimeout(timer)
+  }, [scrollTarget])
 
   useEffect(() => {
     const container = containerRef.current
@@ -366,12 +374,14 @@ export default function CoreField() {
   )
 
   const ProjectCard = ({
-    p, className,
+    p, className, id,
   }: {
     p: { eyebrow: string; title: string; desc: string; tags: string[] }
     className: string
+    id?: string
   }) => (
     <div
+      id={id}
       className={`${className} project-card-grid`}
       style={{
         background: colors.surface, border: `1px solid ${colors.hairline}`,
@@ -501,7 +511,7 @@ export default function CoreField() {
           Functional immunology assays, built for the clinic.
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {STANFORD_PROJECTS.map((p, i) => <ProjectCard key={i} p={p} className="stanford-card" />)}
+          {STANFORD_PROJECTS.map((p, i) => <ProjectCard key={i} p={p} className="stanford-card" id={i === 1 ? 'project-dhr' : undefined} />)}
         </div>
       </div>
 
@@ -514,7 +524,12 @@ export default function CoreField() {
           What I built before Stanford.
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {PAST_PROJECTS.map((p, i) => <ProjectCard key={i} p={p} className="past-card" />)}
+          {PAST_PROJECTS.map((p, i) => (
+            <ProjectCard
+              key={i} p={p} className="past-card"
+              id={i === 0 ? 'project-nk-engineering' : i === 1 ? 'project-mrna-lnp' : undefined}
+            />
+          ))}
         </div>
       </div>
 
@@ -574,6 +589,7 @@ export default function CoreField() {
                 borderRadius: 20, boxShadow: shadows.card, overflow: 'hidden',
               }}>
                 <button
+                  className="exp-header"
                   onClick={() => setOpenExp(openExp === i ? null : i)}
                   style={{
                     width: '100%', background: 'none', border: 'none', cursor: 'pointer',
