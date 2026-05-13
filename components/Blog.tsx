@@ -1,0 +1,437 @@
+'use client'
+
+import { useState, useRef } from 'react'
+import { gsap } from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { useGSAP } from '@gsap/react'
+import { colors, fonts } from '@/lib/tokens'
+
+gsap.registerPlugin(ScrollTrigger)
+
+type Block =
+  | { type: 'h2'; text: string }
+  | { type: 'p'; text: string }
+  | { type: 'img'; src: string; caption: string }
+
+interface BlogPost {
+  eyebrow: string
+  title: string
+  desc: string
+  tag: string
+  content: Block[]
+}
+
+const TAG_META: Record<string, { bg: string; color: string }> = {
+  Science:  { bg: 'rgba(212,69,31,0.08)',  color: '#d4451f' },
+  Career:   { bg: 'rgba(36,24,19,0.07)',   color: '#7a6c63' },
+  Tutorial: { bg: 'rgba(255,122,46,0.10)', color: '#c05a10' },
+  Personal: { bg: 'rgba(36,24,19,0.07)',   color: '#7a6c63' },
+}
+
+const POSTS: BlogPost[] = [
+  {
+    eyebrow: 'SCIENCE · MAY 2026',
+    title: 'Translating a research assay into the clinic: what actually changes',
+    desc: 'The PrimeFlow protocol works beautifully in a research lab. Making it work in a clinical flow lab is a different sport. Notes from the trenches of the EBER Flow-FISH validation.',
+    tag: 'Science',
+    content: [
+      { type: 'p', text: `There's a version of this story where I say I arrived at Stanford, picked up the PrimeFlow protocol, and had a validated clinical assay running within a few months. That version is cleaner. It's also not what happened.` },
+      { type: 'p', text: `EBV, the Epstein-Barr virus, is one of the most common viruses in the world. Most people are infected by it at some point in their lives, usually without knowing. In immunocompromised patients, however, EBV can reactivate and drive the growth of EBV-infected lymphocytes, leading to serious and sometimes fatal lymphoproliferative disorders. Detecting which specific immune cells are infected, and at what level, is critical for diagnosis and treatment decisions. EBER, or EBV-encoded RNA, is the most abundantly expressed viral product in infected cells and the most reliable target for detection. The assay we're building uses flow cytometry to detect EBER at single-cell resolution, something that, until now, has only been done in research settings.` },
+      { type: 'p', text: `The EBER Flow-FISH project was one of the first two projects I was handed when I joined the Department of Pathology. The other was the DHR oxidative burst assay for chronic granulomatous disease. Both were flow cytometry-based. Both needed to go from concept to clinical use. What I didn't fully appreciate at the time was how different "works in a research lab" and "works in a clinical lab" actually are.` },
+      { type: 'p', text: `This is what I've learned so far.` },
+      { type: 'h2', text: 'The instrument problem nobody warns you about' },
+      { type: 'p', text: `The first thing that stopped the EBER project cold wasn't the protocol. It was the instrument.` },
+      { type: 'p', text: `The goal of the assay is single-cell resolution EBV detection. We don't just want to know if EBV is present in a sample; we want to know which cell type it's on. That matters because EBV causes different cancers depending on which cell it infects. Differentiating between B cells, T cells, and NK cells in the same sample while simultaneously detecting a viral RNA signal requires differentiating between a lot of fluorescent parameters at once. A conventional flow cytometer simply doesn't have the capacity to do that cleanly.` },
+      { type: 'p', text: `So the EBER project went on hold. We pivoted to the DHR assay, which I completed, validated, and transferred to the clinical lab, and waited for the Cytek Aurora spectral flow cytometer to arrive. I was one of three people sent to get trained on it. Spectral flow is an entirely different paradigm from conventional multicolor flow: instead of discrete bandpass filters, every detector captures the full emission spectrum of every fluorochrome, and the software mathematically unmixes overlapping signals. More parameters, cleaner resolution, steeper learning curve.` },
+      { type: 'p', text: `Once the Aurora was set up, the EBER project had its instrument. But by then I'd learned something important: in clinical translation, the instrument is never just the instrument. It's the software, the training, the SOPs, the people who have to use it after you're done building the assay.` },
+      { type: 'h2', text: 'Choosing the right protocol' },
+      { type: 'p', text: `Before we even got to panel design, we had a decision to make: which RNA detection platform to use.` },
+      { type: 'p', text: `Flow-FISH for EBV detection relies on signal amplification. The virus is present at low copy numbers, so you need a method that can boost the signal enough to reliably detect it above background. We evaluated two protocols and narrowed it down to ThermoFisher's PrimeFlow assay. The reasons were practical: shorter hands-on time, clearer manufacturer documentation, better technical support, and signal characteristics consistent with published EBV detection literature. The competing protocol wasn't worse in principle. It just had more friction, and friction in a clinical workflow compounds quickly when you're processing patient samples on a schedule.` },
+      { type: 'p', text: `This is one of the first things that changes when you move from research to clinic: you optimize for robustness and reproducibility, not just performance. A protocol that gives you a slightly better signal but takes an extra four hours and has three ambiguous steps is the wrong choice in a diagnostic setting.` },
+      { type: 'h2', text: 'Panel design as a constraint problem' },
+      { type: 'p', text: `With the platform chosen, the next challenge was the antibody panel.` },
+      { type: 'p', text: `The EBER Flow-FISH panel needs to do several things simultaneously: detect EBV RNA signal, gate B cells, T cells, and NK cells, assess B cell clonality via kappa and lambda light chains, and evaluate T cell clonality via TRBC. On a spectral cytometer, every fluorochrome you add interacts with every other one. The unmixing algorithm handles it, but your choices still constrain each other. Bright fluorochromes need to go on dim markers. Tandem dyes are unstable under the PrimeFlow fixation conditions. Some antibody clones don't survive the protocol chemistry.` },
+      { type: 'p', text: `We worked through several panel iterations, running test stains to check signal-to-noise on each marker before committing. This is slow, iterative work. But getting it wrong means your downstream gating is unreliable, and an unreliable gate in a diagnostic context means a patient gets a wrong or delayed result. The stakes make you careful.` },
+      { type: 'h2', text: 'The analysis wall' },
+      { type: 'p', text: `Here's where I'll be honest about where the project currently stands: the assay is running, the biology is working, the panel is close to finalized, and I have hit a wall on the analysis side.` },
+      { type: 'p', text: `Spectral data analysis is fundamentally different from conventional flow analysis. The standard tool we use here for clinical reporting is FCS Express, solid software, widely used in clinical labs, and it does support spectral data import and unmixing. But setting up the spectral unmixing pipeline in FCS Express for a new assay on a new instrument, in a lab where nobody has done it before, with limited documentation and no institutional precedent, is its own project.` },
+      { type: 'p', text: `I've been working around it, analyzing data the conventional way, which is good enough to finalize the antibody panel and confirm that our EBV detection signal is consistent with validated reference assays. But it's not the clinical-grade analysis pipeline we need for validation. I've reached out to FCS Express support. I'm working through it. This is, genuinely, uncharted territory for this lab.` },
+      { type: 'p', text: `What I've come to appreciate is that this is exactly what clinical translation looks like. It's not a linear path from protocol to validation. It's a sequence of problems you couldn't fully anticipate, each requiring you to either find the answer or become the person who figures it out for the first time.` },
+      { type: 'h2', text: 'What comes next' },
+      { type: 'p', text: `Once the analysis pipeline is resolved, the immediate next step is protocol optimization. PrimeFlow is a two-day protocol, workable for research but a real constraint in a clinical lab where samples arrive continuously and turnaround time matters. I'll be testing whether incubation times can be compressed without sacrificing signal quality, and if not, identifying appropriate stopping points so samples collected across multiple days can be batched and run together.` },
+      { type: 'p', text: `After that, the validation pipeline mirrors what we did for the DHR assay: analytical validation, pre-analytical studies to establish specimen stability and acceptable collection conditions, cross-correlation with the existing diagnostic standard, and enough evidence to satisfy clinical lab approval requirements.` },
+      { type: 'p', text: `The goal at the end of all of this is an assay that a clinical lab scientist can run on a Monday morning on a patient sample collected Friday, get a clean result, and report it to a care team who can act on it. Everything I'm doing right now is in service of that moment.` },
+      { type: 'p', text: `That's what translating an assay to the clinic actually means. It's less glamorous than the science. It's more important than almost anything else.` },
+    ],
+  },
+  {
+    eyebrow: 'TUTORIAL · MAR 2026',
+    title: 'Building a flow cytometry panel-builder in Python',
+    desc: 'A walk-through of my side project: pulling fluorochrome spectra, scoring spillover, and suggesting antibody-fluor pairings. Half tutorial, half love letter to cytometry.',
+    tag: 'Tutorial',
+    content: [
+      { type: 'h2', text: 'Why this exists' },
+      { type: 'p', text: `While building the antibody panel for the EBER Flow-FISH project, I kept running into the same problem. There is no single resource that walks you through panel design from scratch. The information you need is scattered across instrument manuals, manufacturer application notes, forum threads, and the institutional knowledge of whoever trained you. If nobody trained you, you piece it together yourself.` },
+      { type: 'p', text: `That's the position I was in. And as someone who believes strongly in efficient workflows, it bothered me enough to do something about it. This project started as a place to put everything I was learning in one place. It's slowly becoming something more useful than that.` },
+      { type: 'h2', text: 'Flow cytometry is not as complicated as it seems, except when it is' },
+      { type: 'p', text: `When I first started working with flow cytometers, the whole field felt impenetrable. I was handed instrument time and told to figure it out. The learning curve felt steep because everything seemed interconnected in ways nobody had explained to me.` },
+      { type: 'p', text: `What I eventually realized is that most of it is actually manageable. Instrument handling, cleaning, and basic troubleshooting all come with documentation, and instrument manufacturers have entire teams of field application scientists whose job is to help you. The part that is genuinely complicated and genuinely under-resourced in terms of accessible guidance is panel design. Choosing which fluorochromes to pair with which markers, on which instrument, for which biological question, in a way that gives you clean and interpretable data.` },
+      { type: 'p', text: `Doing this for clinical use raises the stakes considerably. In a research setting, a suboptimal panel costs you a figure. In a clinical diagnostic setting, it can cost a patient a clear result. That difference is what pushed me to start building something systematic.` },
+      { type: 'h2', text: 'What the tool does right now' },
+      { type: 'p', text: `The current version is straightforward. It takes an input CSV file listing fluorochromes and their assigned detector channels, checks them against a curated list of incompatible pairs and flags any conflicts with a warning.` },
+      { type: 'p', text: `Incompatible pairs are a real and underappreciated problem in panel design. When two fluorochromes have overlapping emission spectra and you haven't accounted for it, the signal from one bleeds into the detector measuring the other. In spectral flow cytometry, the unmixing algorithm handles much of this mathematically, but it's not magic. Your starting choices still matter, and some combinations are simply too close to resolve cleanly regardless of how good your software is.` },
+      { type: 'p', text: `The tool catches those problems before you run a single sample.` },
+      { type: 'h2', text: "Where it's going" },
+      { type: 'p', text: `The current version is a compatibility checker. What I'm building toward is a panel designer, something that takes your experimental requirements as input and suggests a panel rather than just evaluating one you've already built.` },
+      { type: 'p', text: `That's a harder problem. It requires connecting to a comprehensive fluorochrome database with spectral data, understanding instrument-specific detector configurations, factoring in antigen expression levels on your target cells, and balancing all of those constraints simultaneously to propose combinations that actually work. There is software that evaluates spectral overlap for a panel you've already chosen. There isn't, to my knowledge, anything that takes your markers and your instrument and suggests the panel design itself.` },
+      { type: 'p', text: `That might be far-fetched as a solo side project. Other people might be working on it and if you are, I'd genuinely like to connect and work on it together. But it's a problem worth solving, and it's one I'm willing to spend time on because I feel the gap every time I sit down to design a new panel.` },
+      { type: 'h2', text: 'The broader point' },
+      { type: 'p', text: `This project exists because I found myself doing something repetitive and error-prone and thought: there should be a better way to do this. That instinct — using the technical skills I'm building on the side to make the work I do every day faster and more reliable — is what computational biology actually means to me in practice. Not a separate discipline, but a way of thinking about the problems already in front of you.` },
+      { type: 'p', text: `The code is on GitHub. It's a work in progress. Contributions and conversations are welcome.` },
+    ],
+  },
+  {
+    eyebrow: 'CAREER · JAN 2026',
+    title: 'On being a wet-lab scientist who codes (a little)',
+    desc: "I'm not a software engineer. But the day I stopped being scared of Python is the day my experiments got better. A short defence of being just-good-enough at the next thing over.",
+    tag: 'Career',
+    content: [
+      { type: 'h2', text: 'How I got here' },
+      { type: 'p', text: `I didn't come from a coding background. I came from a genuine fascination with the space between engineering and medicine — the part where biology meets design and the question shifts from "how does this work" to "how do we use this to help someone." Biotechnology was the one chapter in my high school textbook I read past the syllabus. That instinct is what eventually brought me to immunology, cell therapy, and translational research.` },
+      { type: 'p', text: `Coding was not part of that picture for a long time.` },
+      { type: 'p', text: `I moved through undergrad deliberately avoiding computational biology and programming classes. I watched my roommates, all data scientists, genuinely love what they were studying, and I remember thinking: that's how it's supposed to feel. My father, a longtime advocate for AI and machine learning, kept telling me it was unavoidable. I kept finding ways around it anyway.` },
+      { type: 'h2', text: 'The thing I had to admit' },
+      { type: 'p', text: `What I eventually had to reckon with is that I tend to disengage from things when they aren't taught to me in a way that makes sense. Physics in high school. Computer science in undergrad. Anything that felt like a wall rather than a door. I'd bounce off it and move on. For a long time I called that knowing my strengths. It wasn't. It was avoidance.` },
+      { type: 'p', text: `The shift happened when I reframed the question. Instead of asking whether I could become a programmer, I started asking whether I could make my work better with code. Those are very different questions. The first one felt like a career change. The second one felt like a tool I was choosing not to pick up.` },
+      { type: 'p', text: `Once I connected it to the thing that actually motivates me — which is making things easier for people working in the same space — something clicked. If I could understand this well enough to build something useful, maybe I could also make it easier for the next wet-lab scientist who felt the same wall I did.` },
+      { type: 'h2', text: 'What changed at the bench' },
+      { type: 'p', text: `The honest answer is: quite a bit.` },
+      { type: 'p', text: `I started with small things. Python scripts to organize data, automate repetitive analysis steps, handle file formatting that used to take an hour by hand. Nothing impressive. But the cumulative effect was real. I started thinking about my experiments differently — not just in terms of what I was measuring but in terms of how I would handle the data afterward. That upstream thinking made me a better experimentalist.` },
+      { type: 'p', text: `The panel-builder project came out of this directly. I was designing the EBER Flow-FISH panel and realized there was no clean, accessible resource for someone doing this from scratch. So I started building one. It started as a compatibility checker and it's still growing. That project exists because I could code just enough to make it real.` },
+      { type: 'p', text: `The NK cell cytotoxicity predictive model at the June Lab came from the same place. I had experimental data, a question I wanted to answer, and enough Python to build something that helped me answer it. Not a production-grade machine learning pipeline. Something useful for the problem in front of me. That's the version of coding I'm defending here.` },
+      { type: 'h2', text: 'Just-good-enough is underrated' },
+      { type: 'p', text: `There's a version of this conversation where the conclusion is: everyone should learn to code properly. I'm not making that argument. What I'm saying is narrower and, I think, more honest.` },
+      { type: 'p', text: `You don't need to be a software engineer to benefit from knowing how to code. You need to be good enough to automate the thing that's wasting your time, to build the tool that doesn't exist yet, to understand what a collaborator is doing when they hand you a script and ask if the logic makes sense. That level of fluency is achievable for most people and it compounds quietly over time.` },
+      { type: 'p', text: `I'm still learning. Python, some R, enough machine learning to be dangerous in a useful way. Every small thing I build — including this website — makes the next thing feel more possible. The learning curve is real and I'm still on it. But when I look at what even basic computational fluency has done for the quality of my work and my thinking, I have no patience anymore for the idea that wet-lab scientists and computation live in separate worlds.` },
+      { type: 'p', text: `They don't. And the scientists who figure that out early have a meaningful edge.` },
+    ],
+  },
+  {
+    eyebrow: 'PERSONAL · APR 2026',
+    title: 'Somewhere new, every time',
+    desc: 'Vellore, Philadelphia, Boston, the Bay. Every move comes with a small commitment to figure out the place, the people, and yourself. A few things that stuck.',
+    tag: 'Personal',
+    content: [
+      { type: 'h2', text: 'The decision' },
+      { type: 'p', text: `I came to the United States in 2023 to start my masters at Penn. I had never lived alone before. I had never managed my own finances, cooked consistently for myself, or navigated the particular loneliness of being new somewhere without a ready-made community around me. I knew one person in Philadelphia: a friend from undergrad who had made the same move. That single thread of continuity made everything else feel possible.` },
+      { type: 'p', text: `I picked up a part-time job as a research assistant early on. Not just for the money, though that mattered, but because having somewhere to be and something to contribute settled something in me. I learned to budget, to prioritize, to make peace with the gap between what I could afford and what I wanted. These are ordinary adult lessons. Learning them in a different country, without the safety net of home, makes them stick differently.` },
+      { type: 'img', src: '/images/philly.jpg', caption: 'Philadelphia · 2023 — 2025' },
+      { type: 'h2', text: 'Boston' },
+      { type: 'p', text: `The co-op at Moderna meant moving to Boston for six months. My friend and I drove up together, stopped in New York for a few hours, walked through Central Park, found good pastries, and kept going.` },
+      { type: 'p', text: `Boston changed me in ways I'm still accounting for. It's a city that takes itself seriously in the best way. I made new friends through the co-op program, people from completely different fields and backgrounds who I wouldn't have met any other way. I explored the city properly. The neighborhoods, the food, the waterfronts, the strange charm of a place that feels simultaneously historic and alive. I fell in love with it. Coming back to Philadelphia to finish my degree felt like leaving something behind.` },
+      { type: 'img', src: '/images/boston.jpg', caption: 'Boston · 2024' },
+      { type: 'h2', text: 'The gap' },
+      { type: 'p', text: `Graduating is supposed to feel like an arrival. In some ways it did. My family flew in and we spent weeks traveling together around the country, cities I'd been meaning to show them since I arrived. Watching my parents experience it all with me was its own kind of gift.` },
+      { type: 'p', text: `But the months that followed were hard. Visa timelines, job uncertainty, the particular stress of not knowing where the next chapter would be or when it would start. I drove from Miami to Orlando to live with family for a stretch, and found something unexpected: a slower pace, genuine warmth, a different way of organizing a life. It reminded me that there are many ways to be okay.` },
+      { type: 'img', src: '/images/grad.jpg', caption: 'The gap · 2025' },
+      { type: 'h2', text: 'California' },
+      { type: 'p', text: `Moving to the Bay felt like the beginning of something more settled. I've taken road trips, done more hiking than any previous version of myself would have predicted, and made a deliberate effort to build a life here rather than just live in one. Healthier habits, better routines, a small but solid group of people who know me well.` },
+      { type: 'p', text: `The Bay is different from the East Coast in ways that are hard to articulate until you've lived in both. The weather helps. So does the energy. The people here are active, outdoorsy, always moving toward something. Adapting to that has been one of the more enjoyable parts of being here.` },
+      { type: 'p', text: `I already had a group of friends from Penn when I arrived, which made the transition feel less like starting over and more like continuing something. We've built small rituals, weekend trips, hikes, ranking coffee shops across San Jose, late night walks that go longer than planned. The kind of low-stakes consistency that turns a group of people into something that feels like family. We show up for each other through the harder stretches too, and that matters more than any of the fun stuff.` },
+      { type: 'p', text: `What I didn't expect was how much I'd learn from them. Everyone here is working on something different. None of them are in the life sciences, which means every conversation opens a window into a world I'd otherwise know nothing about. Being around people who are genuinely motivated, each in their own direction, has quietly raised the bar for what I expect from myself.` },
+      { type: 'img', src: '/images/cali.jpg', caption: 'California · 2025 —' },
+      { type: 'h2', text: "What I'd say about all of it" },
+      { type: 'p', text: `I was thrown into adulthood in a foreign country at twenty-two and had to figure out most of it as I went. Some lessons came easily. Others came the hard way. I wouldn't undo any of it.` },
+      { type: 'p', text: `The cities taught me things. The work taught me things. But mostly it was the people. The ones who showed up consistently, who picked up the phone, who made unfamiliar places feel like somewhere you could belong. To my parents, who made this possible and trusted me with it: thank you. To the people who became family along the way: you made all of it worth it, and I hope you know that.` },
+    ],
+  },
+]
+
+const ALL_TAGS = ['All', ...Object.keys(TAG_META)]
+
+export default function Blog() {
+  const [activeTag, setActiveTag] = useState('All')
+  const [hovPost, setHovPost] = useState<number | null>(null)
+  const [openPost, setOpenPost] = useState<number | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const postListRef = useRef<HTMLDivElement>(null)
+
+  const filteredWithIdx = POSTS
+    .map((p, idx) => ({ ...p, idx }))
+    .filter((p) => activeTag === 'All' || p.tag === activeTag)
+
+  useGSAP(
+    () => {
+      const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
+      tl.from('.blog-eyebrow', { opacity: 0, y: 12, duration: 0.5 }, 0.1)
+      tl.from('.blog-title-word', { yPercent: 110, duration: 0.8, stagger: 0.1, ease: 'power4.out' }, 0.2)
+      tl.from('.blog-desc', { opacity: 0, y: 18, duration: 0.5 }, 0.55)
+
+      // Slide in without opacity-0 so buttons are never invisible
+      gsap.from('.filter-pill', {
+        x: -14, stagger: 0.07, duration: 0.45, ease: 'power3.out', delay: 0.5,
+      })
+    },
+    { scope: containerRef }
+  )
+
+
+  const handleTagChange = (tag: string) => {
+    if (tag !== activeTag) setActiveTag(tag)
+  }
+
+  const handleOpenPost = (idx: number) => {
+    setOpenPost(idx)
+    window.scrollTo(0, 0)
+  }
+
+  const handleClosePost = () => {
+    setOpenPost(null)
+    window.scrollTo(0, 0)
+  }
+
+  const post = openPost !== null ? POSTS[openPost] : null
+
+  return (
+    <div ref={containerRef} style={{ background: colors.canvas, minHeight: '100vh' }}>
+
+      {post !== null ? (
+        /* ── Post view: in-flow document scroll, no fixed overlay ─────────── */
+        <div style={{ maxWidth: 680, margin: '0 auto', padding: '40px 32px 100px' }}>
+
+            {/* Back */}
+            <button
+              onClick={handleClosePost}
+              style={{
+                fontFamily: fonts.display, fontWeight: 700, fontSize: '0.875rem',
+                padding: '8px 0', border: 'none', background: 'transparent',
+                cursor: 'pointer', color: colors.muted,
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                marginBottom: 48, transition: 'color 160ms',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = colors.ink }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = colors.muted }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5M12 5l-7 7 7 7" />
+              </svg>
+              Back to writing
+            </button>
+
+            {/* Post header */}
+            <div style={{ marginBottom: 40 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <div style={{
+                  fontFamily: fonts.mono, fontSize: '0.5625rem', fontWeight: 500,
+                  letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.muted,
+                }}>
+                  {post.eyebrow}
+                </div>
+                <span style={{
+                  fontFamily: fonts.body, fontWeight: 600, fontSize: '0.6875rem',
+                  padding: '2px 9px', borderRadius: 9999, ...TAG_META[post.tag],
+                }}>
+                  {post.tag}
+                </span>
+              </div>
+
+              <h1 style={{
+                fontFamily: fonts.display, fontWeight: 800,
+                fontSize: 'clamp(1.75rem,3.5vw,2.375rem)',
+                letterSpacing: '-0.04em', color: colors.ink,
+                lineHeight: 1.1, marginBottom: 16,
+              }}>
+                {post.title}
+              </h1>
+
+              <p style={{
+                fontFamily: fonts.body, fontSize: '1.125rem',
+                lineHeight: 1.6, color: colors.muted, marginBottom: 0,
+              }}>
+                {post.desc}
+              </p>
+            </div>
+
+            <div style={{ height: 1, background: colors.divider, marginBottom: 40 }} />
+
+            {/* Content */}
+            <div>
+              {post.content.map((block, i) => {
+                if (block.type === 'h2') {
+                  return (
+                    <h2 key={i} style={{
+                      fontFamily: fonts.display, fontWeight: 800,
+                      fontSize: '1.1875rem', letterSpacing: '-0.025em',
+                      color: colors.ink, marginTop: 40, marginBottom: 14,
+                    }}>
+                      {block.text}
+                    </h2>
+                  )
+                }
+                if (block.type === 'p') {
+                  return (
+                    <p key={i} style={{
+                      fontFamily: fonts.body, fontSize: '1.0625rem',
+                      lineHeight: 1.72, color: '#4a3f38',
+                      marginBottom: 20,
+                    }}>
+                      {block.text}
+                    </p>
+                  )
+                }
+                if (block.type === 'img') {
+                  return (
+                    <div key={i} style={{ margin: '36px 0' }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={block.src}
+                        alt={block.caption}
+                        style={{ width: '100%', borderRadius: 8, display: 'block' }}
+                      />
+                      <p style={{
+                        fontFamily: fonts.mono, fontSize: '0.6875rem',
+                        letterSpacing: '0.06em', color: '#888',
+                        textAlign: 'center', marginTop: 10, marginBottom: 0,
+                      }}>
+                        {block.caption}
+                      </p>
+                    </div>
+                  )
+                }
+                return null
+              })}
+            </div>
+        </div>
+      ) : (
+        /* ── List view ────────────────────────────────────────────────────────── */
+        <>
+          {/* Hero */}
+          <div style={{ maxWidth: 800, margin: '0 auto', padding: '80px 32px 52px' }}>
+            <div className="blog-eyebrow" style={{
+              fontFamily: fonts.mono, fontSize: '0.6875rem', fontWeight: 500,
+              letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.muted, marginBottom: 18,
+            }}>
+              Writing
+            </div>
+            <div style={{
+              fontFamily: fonts.display, fontWeight: 800,
+              fontSize: 'clamp(2.25rem,4vw,3.25rem)',
+              lineHeight: 1.03, letterSpacing: '-0.04em', color: colors.ink, marginBottom: 18,
+            }}>
+              {['Things I', 'think about.'].map((line, i) => (
+                <div key={i} style={{ overflow: 'hidden' }}>
+                  <div className="blog-title-word">{line}</div>
+                </div>
+              ))}
+            </div>
+            <div className="blog-desc" style={{
+              fontFamily: fonts.body, fontSize: '1.0625rem', lineHeight: 1.65, color: colors.muted,
+            }}>
+              Science, career, computation, and occasionally things that have nothing to do with any of that.
+            </div>
+          </div>
+
+          {/* Tag filter */}
+          <div className="filter-row" style={{ maxWidth: 800, margin: '0 auto', padding: '0 32px 32px' }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {ALL_TAGS.map((t) => (
+                <button
+                  key={t}
+                  className="filter-pill"
+                  onClick={() => handleTagChange(t)}
+                  style={{
+                    fontFamily: fonts.display, fontWeight: 700, fontSize: '0.8125rem',
+                    padding: '6px 16px', borderRadius: 9999, cursor: 'pointer',
+                    transition: 'all 160ms',
+                    opacity: 1,
+                    background: activeTag === t ? '#241813' : 'transparent',
+                    color: activeTag === t ? '#ffffff' : '#241813',
+                    border: activeTag === t ? 'none' : '1px solid #241813',
+                  }}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 32px' }}>
+            <div style={{ height: 1, background: colors.divider }} />
+          </div>
+
+          {/* Post list */}
+          <div ref={postListRef} style={{ maxWidth: 800, margin: '0 auto', padding: '0 32px 96px' }}>
+            {filteredWithIdx.map((p) => (
+              <div
+                key={p.idx}
+                className="post-item"
+                onClick={() => handleOpenPost(p.idx)}
+            onMouseEnter={() => setHovPost(p.idx)}
+            onMouseLeave={() => setHovPost(null)}
+            style={{
+              padding: '32px 0',
+              borderBottom: `1px solid ${colors.divider}`,
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                fontFamily: fonts.mono, fontSize: '0.5625rem', fontWeight: 500,
+                letterSpacing: '0.12em', textTransform: 'uppercase', color: colors.muted,
+              }}>
+                {p.eyebrow}
+              </div>
+              <span style={{
+                fontFamily: fonts.body, fontWeight: 600, fontSize: '0.6875rem',
+                padding: '2px 9px', borderRadius: 9999, flexShrink: 0,
+                ...TAG_META[p.tag],
+              }}>
+                {p.tag}
+              </span>
+            </div>
+
+            <div style={{
+              fontFamily: fonts.display, fontWeight: 800,
+              fontSize: 'clamp(1.1rem,2vw,1.3rem)',
+              letterSpacing: '-0.025em',
+              color: hovPost === p.idx ? colors.ember : colors.ink,
+              lineHeight: 1.2, transition: 'color 160ms',
+            }}>
+              {p.title}
+            </div>
+
+            <div style={{
+              fontFamily: fonts.body, fontSize: '0.9375rem',
+              lineHeight: 1.6, color: colors.muted, maxWidth: '60ch',
+            }}>
+              {p.desc}
+            </div>
+
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 5, color: colors.ember,
+              fontFamily: fonts.display, fontWeight: 700, fontSize: '0.875rem',
+              marginTop: 2,
+              opacity: hovPost === p.idx ? 1 : 0,
+              transition: 'opacity 160ms',
+            }}>
+              Read more
+              <svg
+                style={{ transform: hovPost === p.idx ? 'translateX(3px)' : 'none', transition: 'transform 200ms ease' }}
+                width="13" height="13" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              >
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    )}
+  </div>
+  )
+}
