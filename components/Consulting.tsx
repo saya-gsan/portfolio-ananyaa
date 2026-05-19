@@ -110,7 +110,7 @@ export default function Consulting() {
           lineHeight: 1.04, letterSpacing: '-0.04em', color: colors.ink, marginBottom: 22,
         }}>
           {["A scientist's lens", 'on strategy.'].map((line, i) => (
-            <div key={i} style={{ overflow: 'hidden' }}>
+            <div key={i} style={{ overflow: 'hidden', paddingBottom: '0.15em' }}>
               <div className="con-title-word">{line}</div>
             </div>
           ))}

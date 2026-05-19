@@ -1,9 +1,10 @@
 'use client'
 
 import { colors, fonts } from '@/lib/tokens'
-import type { Tab } from './App'
+import { useNavigate } from '@/lib/navigationContext'
 
-export default function Footer({ onTabChange }: { onTabChange: (t: Tab) => void }) {
+export default function Footer() {
+  const navigate = useNavigate()
   return (
     <footer
       style={{
@@ -26,7 +27,7 @@ export default function Footer({ onTabChange }: { onTabChange: (t: Tab) => void 
         {/* Left — name */}
         <div style={{ flex: 1 }}>
           <button
-            onClick={() => onTabChange('home')}
+            onClick={() => navigate('/')}
             style={{
               fontFamily: fonts.display,
               fontWeight: 800,

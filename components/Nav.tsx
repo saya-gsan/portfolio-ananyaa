@@ -4,29 +4,29 @@ import { useState, useRef } from 'react'
 import { gsap } from 'gsap'
 import { useGSAP } from '@gsap/react'
 import { colors, gradient, shadows, fonts } from '@/lib/tokens'
-import type { Tab } from './App'
+import { useNavigate } from '@/lib/navigationContext'
 
 gsap.registerPlugin()
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'home',          label: 'Home' },
-  { id: 'core',          label: 'The Science' },
-  { id: 'consulting',    label: 'Consulting' },
-  { id: 'computational', label: 'Comp Bio' },
-  { id: 'blog',          label: 'Blog' },
+const TABS = [
+  { id: 'home',          label: 'Home',        path: '/' },
+  { id: 'core',          label: 'The Science',  path: '/science' },
+  { id: 'consulting',    label: 'Consulting',   path: '/consulting' },
+  { id: 'computational', label: 'Comp Bio',     path: '/comp-bio' },
+  { id: 'blog',          label: 'Blog',         path: '/blog' },
 ]
 
-export default function Nav({
-  activeTab,
-  onTabChange,
-}: {
-  activeTab: Tab
-  onTabChange: (t: Tab) => void
-}) {
+function isActive(tabPath: string, pathname: string): boolean {
+  if (tabPath === '/') return pathname === '/'
+  return pathname.startsWith(tabPath)
+}
+
+export default function Nav({ pathname }: { pathname: string }) {
+  const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
-  const navRef = useRef<HTMLElement>(null)
+  const navRef      = useRef<HTMLElement>(null)
   const wordmarkRef = useRef<HTMLButtonElement>(null)
-  const resumeRef = useRef<HTMLAnchorElement>(null)
+  const resumeRef   = useRef<HTMLAnchorElement>(null)
 
   useGSAP(
     () => {
@@ -43,8 +43,8 @@ export default function Nav({
     })
   }
 
-  const handleTabClick = (id: Tab) => {
-    onTabChange(id)
+  const handleTabClick = (path: string) => {
+    navigate(path)
     setMenuOpen(false)
   }
 
@@ -63,7 +63,7 @@ export default function Nav({
         boxSizing: 'border-box',
       }}
     >
-      {/* ── Main bar: flex space-between; tabs absolutely centered ── */}
+      {/* ── Main bar ── */}
       <div style={{
         position: 'relative',
         display: 'flex',
@@ -76,7 +76,7 @@ export default function Nav({
         {/* Left: Wordmark */}
         <button
           ref={wordmarkRef}
-          onClick={() => handleTabClick('home')}
+          onClick={() => handleTabClick('/')}
           onMouseEnter={() => gsap.to(wordmarkRef.current, { letterSpacing: '-0.01em', duration: 0.2 })}
           onMouseLeave={() => gsap.to(wordmarkRef.current, { letterSpacing: '-0.03em', duration: 0.2 })}
           style={{
@@ -94,7 +94,7 @@ export default function Nav({
           Anu Srinivasan
         </button>
 
-        {/* Center: Nav tabs — absolutely centered, hidden below nav breakpoint */}
+        {/* Center: Nav tabs */}
         <div className="hidden nav:flex" style={{
           position: 'absolute',
           left: '50%',
@@ -106,15 +106,15 @@ export default function Nav({
           {TABS.map((t) => (
             <button
               key={t.id}
-              onClick={() => handleTabClick(t.id)}
+              onClick={() => handleTabClick(t.path)}
               style={{
                 fontFamily: fonts.display,
                 fontWeight: 700,
                 fontSize: '0.9375rem',
                 padding: '0 15px',
                 cursor: 'pointer',
-                color: activeTab === t.id ? colors.ember : colors.muted,
-                borderBottom: activeTab === t.id ? `2px solid ${colors.ember}` : '2px solid transparent',
+                color: isActive(t.path, pathname) ? colors.ember : colors.muted,
+                borderBottom: isActive(t.path, pathname) ? `2px solid ${colors.ember}` : '2px solid transparent',
                 borderTop: 'none',
                 borderLeft: 'none',
                 borderRight: 'none',
@@ -130,10 +130,9 @@ export default function Nav({
           ))}
         </div>
 
-        {/* Right: LinkedIn + Resume (desktop) / hamburger (mobile) — always far right */}
+        {/* Right: LinkedIn + Resume (desktop) / hamburger (mobile) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
 
-          {/* LinkedIn + Resume — desktop only */}
           <div className="hidden nav:flex" style={{ alignItems: 'center', gap: 8 }}>
             <a
               href="https://linkedin.com/in/ananyaa-srinivasan/"
@@ -193,7 +192,7 @@ export default function Nav({
             </a>
           </div>
 
-          {/* Hamburger — below nav breakpoint only */}
+          {/* Hamburger */}
           <button
             className="flex nav:hidden"
             onClick={() => setMenuOpen((o) => !o)}
@@ -233,7 +232,7 @@ export default function Nav({
         </div>
       </div>
 
-      {/* ── Mobile dropdown — controlled by React state, sits on top of page ── */}
+      {/* ── Mobile dropdown ── */}
       {menuOpen && (
         <div style={{
           borderTop: `1px solid ${colors.divider}`,
@@ -245,7 +244,7 @@ export default function Nav({
           {TABS.map((t) => (
             <button
               key={t.id}
-              onClick={() => handleTabClick(t.id)}
+              onClick={() => handleTabClick(t.path)}
               style={{
                 display: 'block',
                 width: '100%',
@@ -254,18 +253,17 @@ export default function Nav({
                 fontFamily: fonts.display,
                 fontWeight: 700,
                 fontSize: '0.9375rem',
-                color: activeTab === t.id ? colors.ember : colors.ink,
+                color: isActive(t.path, pathname) ? colors.ember : colors.ink,
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
-                borderLeft: activeTab === t.id ? `3px solid ${colors.ember}` : '3px solid transparent',
+                borderLeft: isActive(t.path, pathname) ? `3px solid ${colors.ember}` : '3px solid transparent',
               }}
             >
               {t.label}
             </button>
           ))}
 
-          {/* LinkedIn + Resume stacked in mobile menu */}
           <div style={{
             display: 'flex',
             gap: 10,

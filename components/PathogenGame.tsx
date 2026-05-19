@@ -3,14 +3,14 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { colors, fonts } from '@/lib/tokens'
 
-const GW = 580, GH = 155, GROUND = 120, GRAV = 0.72, JUMP_V = -14
+const GW = 580, GH = 155, GROUND = 120, GRAV = 0.45
 
 type Difficulty = 'easy' | 'medium' | 'hard'
 
-const DIFF_CFG: Record<Difficulty, { speed: number; spawnInterval: number; hitPad: number; label: string; sub: string }> = {
-  easy:   { speed: 3.5, spawnInterval: 110, hitPad: 7, label: 'Resting state',     sub: 'slow cells · generous hitbox' },
-  medium: { speed: 5.0, spawnInterval: 85,  hitPad: 4, label: 'Immune activation', sub: 'default speed · standard density' },
-  hard:   { speed: 6.5, spawnInterval: 60,  hitPad: 2, label: 'Cytokine storm',    sub: 'fast · dense · cells track you' },
+const DIFF_CFG: Record<Difficulty, { speed: number; spawnInterval: number; hitPad: number; label: string; sub: string; jumpV: number }> = {
+  easy:   { speed: 2.52, spawnInterval: 110, hitPad: 7, label: 'Resting state',     sub: 'slow cells · generous hitbox',      jumpV: -12.5 },
+  medium: { speed: 3.6,  spawnInterval: 85,  hitPad: 4, label: 'Immune activation', sub: 'default speed · standard density',  jumpV: -11.2 },
+  hard:   { speed: 4.68, spawnInterval: 60,  hitPad: 2, label: 'Cytokine storm',    sub: 'fast · dense · cells track you',    jumpV: -10   },
 }
 
 interface Obstacle {
@@ -24,14 +24,13 @@ interface GameState {
   frame: number; score: number; speed: number
   spawnCD: number; spawnInterval: number; alive: boolean
   lastHitType: string; difficulty: Difficulty
-  newBestFlash: number
+  newBestFlash: number; lastTimestamp: number
 }
 
 // ── Cell radius for collision ────────────────────────────────────────────────
 function cellRadius(type: string): number {
   if (type === 'macro')          return 18
-  if (type === 'dendritic')      return 20   // wide detection
-  if (type === 'tcell_adaptive') return 9
+if (type === 'tcell_adaptive') return 9
   if (type === 'complement')     return 6
   if (type === 'neutrophil')     return 12
   return 13
@@ -143,31 +142,6 @@ function drawCell(ctx: CanvasRenderingContext2D, x: number, groundY: number, typ
     ctx.fillText('N', cx, cy + 3)
   }
 
-  else if (type === 'dendritic') {
-    // Spiky branched — purple, 10 alternating-length protrusions
-    const r = 11, cx = x, cy = baseY - r - 4
-    ctx.lineCap = 'round'
-    for (let i = 0; i < 10; i++) {
-      const a = (i / 10) * Math.PI * 2
-      const len = i % 2 === 0 ? 18 : 11
-      ctx.strokeStyle = '#8b5cf6'; ctx.lineWidth = 1.5
-      ctx.beginPath()
-      ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a))
-      ctx.lineTo(cx + (r + len) * Math.cos(a), cy + (r + len) * Math.sin(a))
-      ctx.stroke()
-      ctx.fillStyle = '#a78bfa'
-      ctx.beginPath()
-      ctx.arc(cx + (r + len) * Math.cos(a), cy + (r + len) * Math.sin(a), 1.8, 0, Math.PI * 2)
-      ctx.fill()
-    }
-    ctx.fillStyle = '#8b5cf6'
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill()
-    ctx.fillStyle = 'rgba(255,250,242,0.9)'
-    ctx.font = "bold 6px 'JetBrains Mono', monospace"
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-    ctx.fillText('DC', cx, cy)
-  }
-
   else if (type === 'tcell_adaptive') {
     // T cell — small sky-blue, forked TCR receptors
     const r = 9, cx = x, cy = baseY - r
@@ -219,8 +193,7 @@ const CELL_MESSAGES: Record<string, { name: string; blurb: string }> = {
   antibody:       { name: 'B cell',            blurb: 'B cells tag pathogens with antibodies so the rest of the immune system knows exactly what to destroy.' },
   macro:          { name: 'macrophage',         blurb: 'Macrophages engulf and digest pathogens whole — you just became lunch.' },
   neutrophil:     { name: 'neutrophil',         blurb: 'Neutrophils are the first responders of the immune system. They swarm infection sites and release enzymes that destroy anything foreign. Fast, aggressive, no mercy.' },
-  dendritic:      { name: 'dendritic cell',     blurb: 'Dendritic cells are the immune system\'s scouts. They identify threats, capture them, and present the evidence to T cells to trigger a full immune response.' },
-  tcell_adaptive: { name: 'T cell',             blurb: 'T cells are the assassins of the adaptive immune system, trained to recognize and destroy specific targets. Once they know what you are, there\'s no hiding.' },
+tcell_adaptive: { name: 'T cell',             blurb: 'T cells are the assassins of the adaptive immune system, trained to recognize and destroy specific targets. Once they know what you are, there\'s no hiding.' },
   complement:     { name: 'complement protein', blurb: 'Complement proteins coat pathogens and punch holes in their membranes. You were tagged, coated, and dissolved. Classic.' },
 }
 
@@ -255,44 +228,49 @@ export default function PathogenGame() {
       obstacles: [], frame: 0, score: 0,
       speed: cfg.speed, spawnCD: 50, spawnInterval: cfg.spawnInterval,
       alive: true, lastHitType: 'tcell', difficulty: diff,
-      newBestFlash: 0,
+      newBestFlash: 0, lastTimestamp: 0,
     }
   }
 
-  const tick = useCallback(() => {
+  const tick = useCallback((timestamp: number) => {
     const s = stateRef.current
     if (!s || !s.alive) return
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')!
 
-    s.frame++; s.score++
+    // Delta time: normalize to 60fps baseline, cap at 3 frames (~50ms) to prevent jumps after tab switch
+    const rawDt = s.lastTimestamp === 0 ? 16.667 : timestamp - s.lastTimestamp
+    const dt = Math.min(rawDt / 16.667, 3)
+    s.lastTimestamp = timestamp
+
+    s.frame += dt; s.score += dt
     const scoreVal = Math.floor(s.score / 6)
     const cfg = DIFF_CFG[s.difficulty]
 
     // ── Escalating speed/density ───────────────────────────────────────────
     const targetSpeed = scoreVal < 200 ? cfg.speed
-      : scoreVal < 500 ? cfg.speed + 1.5
-      : cfg.speed + 3.0
+      : scoreVal < 500 ? cfg.speed + 0.9
+      : cfg.speed + 1.8
     const targetInterval = scoreVal < 200 ? cfg.spawnInterval
       : scoreVal < 500 ? Math.max(cfg.spawnInterval - 15, 42)
       : Math.max(cfg.spawnInterval - 28, 35)
-    s.speed    += (targetSpeed    - s.speed)    * 0.008
-    s.spawnInterval += (targetInterval - s.spawnInterval) * 0.008
+    s.speed         += (targetSpeed    - s.speed)         * 0.008 * dt
+    s.spawnInterval += (targetInterval - s.spawnInterval) * 0.008 * dt
 
     // ── Physics ────────────────────────────────────────────────────────────
     if (s.jumping || s.py < GROUND) {
-      s.pvy += GRAV
-      s.py = Math.min(s.py + s.pvy, GROUND)
+      s.pvy += GRAV * dt
+      s.py = Math.min(s.py + s.pvy * dt, GROUND)
+
       if (s.py >= GROUND) { s.py = GROUND; s.pvy = 0; s.jumping = false }
     }
 
     // ── Spawn ──────────────────────────────────────────────────────────────
-    s.spawnCD--
+    s.spawnCD -= dt
     if (s.spawnCD <= 0) {
       const pool = ['tcell', 'tcell', 'antibody', 'macro', 'neutrophil', 'neutrophil', 'complement']
-      if (scoreVal >= 100) pool.push('dendritic')
-      if (scoreVal >= 300) pool.push('tcell_adaptive', 'tcell_adaptive')
+if (scoreVal >= 300) pool.push('tcell_adaptive', 'tcell_adaptive')
 
       const chosen = pool[Math.floor(Math.random() * pool.length)]
 
@@ -325,18 +303,17 @@ export default function PathogenGame() {
         // Erratic y-bob
         o.yVel += (Math.random() - 0.5) * 1.0
         o.yVel  = Math.max(-3.5, Math.min(3.5, o.yVel))
-        o.yOff += o.yVel
+        o.yOff += o.yVel * dt
         o.yOff  = Math.max(-18, Math.min(8, o.yOff))
         spd *= 1.15  // naturally faster
       }
-      if (o.type === 'dendritic') spd *= 0.60      // slow scout
-      if (o.type === 'tcell_adaptive') spd *= 1.45 // fast T cell
+if (o.type === 'tcell_adaptive') spd *= 1.45 // fast T cell
 
       // Hard mode / score 500+: periodic burst toward player
       const isBurstMode = s.difficulty === 'hard' || scoreVal >= 500
-      if (isBurstMode && o.x > 80 && s.frame % 160 < 18) spd *= 1.9
+      if (isBurstMode && o.x > 80 && Math.floor(s.frame) % 160 < 18) spd *= 1.9
 
-      o.x -= spd
+      o.x -= spd * dt
     })
 
     // ── Collision ──────────────────────────────────────────────────────────
@@ -363,8 +340,8 @@ export default function PathogenGame() {
     }
 
     // ── New best flash during play ─────────────────────────────────────────
-    if (s.newBestFlash > 0) s.newBestFlash--
-    if (scoreVal > 0 && scoreVal > bestRef.current && s.newBestFlash === 0) {
+    if (s.newBestFlash > 0) s.newBestFlash -= dt
+    if (scoreVal > 0 && scoreVal > bestRef.current && s.newBestFlash <= 0) {
       s.newBestFlash = 100
     }
 
@@ -404,7 +381,7 @@ export default function PathogenGame() {
     if (gameState === 'dead' && difficulty) { start(difficulty); return }
     if (gameState === 'idle') return  // wait for difficulty selection
     const s = stateRef.current
-    if (s && !s.jumping && s.py >= GROUND) { s.pvy = JUMP_V; s.jumping = true }
+    if (s && !s.jumping && s.py >= GROUND) { s.pvy = DIFF_CFG[s.difficulty].jumpV; s.jumping = true }
   }, [gameState, difficulty, start])
 
   useEffect(() => {

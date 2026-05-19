@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 import { colors, gradient, shadows, fonts } from '@/lib/tokens'
-import type { Tab } from './App'
+import { useNavigate } from '@/lib/navigationContext'
 import PathogenGame from './PathogenGame'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -31,27 +31,24 @@ const NOW_ITEMS = [
 
 const INTERESTS = ['Psychology', 'Writing', 'Sketching', 'Puzzles', 'Hiking', 'New cities, new everything']
 
-const FEATURED: { eyebrow: string; title: string; tags: string[]; tab: Tab; scrollTarget?: string }[] = [
+const FEATURED: { eyebrow: string; title: string; tags: string[]; path: string }[] = [
   {
     eyebrow: 'STANFORD · 2025',
     title: 'DHR-based neutrophil oxidative burst assay',
     tags: ['CLINICAL', 'FLOW CYTOMETRY', 'STANFORD PATHOLOGY'],
-    tab: 'core',
-    scrollTarget: 'project-dhr',
+    path: '/science?scroll=project-dhr',
   },
   {
     eyebrow: 'CARL JUNE LAB · 2023–2025',
     title: 'NK cell engineering via feeder cell systems',
     tags: ['NK CELLS', 'CELL ENGINEERING', 'LENTIVIRUS'],
-    tab: 'core',
-    scrollTarget: 'project-nk-engineering',
+    path: '/science?scroll=project-nk-engineering',
   },
   {
     eyebrow: 'MODERNA · 2024',
     title: 'mRNA-LNP scale-up and stability optimization',
     tags: ['mRNA-LNP', 'PROCESS DEVELOPMENT', 'GMP'],
-    tab: 'core',
-    scrollTarget: 'project-mrna-lnp',
+    path: '/science?scroll=project-mrna-lnp',
   },
 ]
 
@@ -59,7 +56,8 @@ const FEATURED: { eyebrow: string; title: string; tags: string[]; tab: Tab; scro
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function Landing({ onTabChange }: { onTabChange: (t: Tab, scrollTarget?: string) => void }) {
+export default function Landing() {
+  const navigate = useNavigate()
   const [hovCard, setHovCard] = useState<number | null>(null)
   const [contactOpen, setContactOpen] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -111,10 +109,10 @@ export default function Landing({ onTabChange }: { onTabChange: (t: Tab, scrollT
                 fontSize: 'clamp(2.75rem,6vw,5rem)',
                 lineHeight: 0.95, letterSpacing: '-0.045em', color: colors.ink,
               }}>
-                <div style={{ overflow: 'hidden' }}>
+                <div style={{ overflow: 'hidden', paddingBottom: '0.15em' }}>
                   <div className="hero-name-word">Ananyaa</div>
                 </div>
-                <div style={{ overflow: 'hidden' }}>
+                <div style={{ overflow: 'hidden', paddingBottom: '0.15em' }}>
                   <div className="hero-name-word">Srinivasan</div>
                 </div>
               </div>
@@ -136,7 +134,7 @@ export default function Landing({ onTabChange }: { onTabChange: (t: Tab, scrollT
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
                 <button
                   className="hero-cta"
-                  onClick={() => onTabChange('core')}
+                  onClick={() => navigate('/science')}
                   style={{
                     fontFamily: fonts.display, fontWeight: 800, fontSize: '0.9375rem',
                     letterSpacing: '-0.01em', padding: '13px 24px', borderRadius: 14,
@@ -312,7 +310,7 @@ export default function Landing({ onTabChange }: { onTabChange: (t: Tab, scrollT
               className={`work-card work-card-${i}`}
               onMouseEnter={() => handleCardHover(i)}
               onMouseLeave={() => handleCardLeave(i)}
-              onClick={() => onTabChange(p.tab, p.scrollTarget)}
+              onClick={() => navigate(p.path)}
               style={{
                 background: colors.surface, border: `1px solid ${colors.hairline}`,
                 borderRadius: 20, padding: '22px 24px',

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { useGSAP } from '@gsap/react'
@@ -280,7 +281,9 @@ const LEGEND = [
   { label: 'Treg', color: '#ff7a2e' }, { label: 'Plasma cell', color: '#ffd24a' },
 ]
 
-export default function CoreField({ scrollTarget }: { scrollTarget?: string | null }) {
+export default function CoreField() {
+  const searchParams = useSearchParams()
+  const scrollTarget = searchParams.get('scroll')
   const [openExp, setOpenExp] = useState<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -288,7 +291,11 @@ export default function CoreField({ scrollTarget }: { scrollTarget?: string | nu
   useEffect(() => {
     if (!scrollTarget) return
     const timer = setTimeout(() => {
-      document.getElementById(scrollTarget)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const el = document.getElementById(scrollTarget)
+      if (el) {
+        const top = el.getBoundingClientRect().top + window.scrollY - 100
+        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+      }
     }, 350)
     return () => clearTimeout(timer)
   }, [scrollTarget])
@@ -456,7 +463,7 @@ export default function CoreField({ scrollTarget }: { scrollTarget?: string | nu
           marginBottom: 22, maxWidth: '18ch',
         }}>
           {['Building the tools', 'that make immune', 'cells work for us.'].map((line, i) => (
-            <div key={i} style={{ overflow: 'hidden' }}>
+            <div key={i} style={{ overflow: 'hidden', paddingBottom: '0.15em' }}>
               <div className="cf-title-word">{line}</div>
             </div>
           ))}
