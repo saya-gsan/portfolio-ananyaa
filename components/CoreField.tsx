@@ -554,7 +554,9 @@ export default function CoreField() {
             borderRadius: 20, padding: '22px 26px', boxShadow: shadows.card,
           }}>
             <div style={{ fontFamily: fonts.display, fontWeight: 800, fontSize: '1rem', letterSpacing: '-0.02em', color: colors.ink, marginBottom: 4 }}>
-              Immunization against COVID-19: A Comprehensive Review on the Leading Vaccines
+              <a href="https://www.benthamdirect.com/content/journals/covid/10.2174/0126667975285709231219080802" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                Immunization against COVID-19: A Comprehensive Review on the Leading Vaccines
+              </a>
             </div>
             <div style={{ fontFamily: fonts.mono, fontSize: '0.625rem', letterSpacing: '0.08em', color: colors.muted, marginBottom: 8 }}>
               Coronaviruses · January 2024
